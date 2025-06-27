@@ -56,9 +56,9 @@ const playlistRoutes = require('./routes/playlistRoutes');
 
 const app = express();
 
-// Configure CORS to allow frontend at http://localhost:3000
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: 'https://sundhun.onrender.com',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
 }));
