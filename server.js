@@ -68,7 +68,7 @@ app.use(cors({
     'https://sundhun.onrender.com',
     'https://music-admin.onrender.com'
     ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   credentials: true,
 }));
 

@@ -333,6 +333,29 @@ const replaceAudio = async (req, res) => {
   }
 };
 
+// const replaceThumbnail = async (req, res) => {
+//   try {
+//     const song = await Song.findById(req.params.id);
+//     if (!song) {
+//       return res.status(404).json({ message: 'Song not found' });
+//     }
+
+//     if (!req.files || !req.files.thumbnail) {
+//       return res.status(400).json({ message: 'Thumbnail file is required' });
+//     }
+
+//     const thumbnail = req.files.thumbnail[0];
+//     const thumbnailUpload = await global.cloudinary.uploader.upload(thumbnail.path);
+//     song.thumbnailUrl = thumbnailUpload.secure_url;
+
+//     await song.save();
+//     res.json(song);
+//   } catch (error) {
+//     console.error('Replace thumbnail error:', error.message);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// };
+
 const replaceThumbnail = async (req, res) => {
   try {
     const song = await Song.findById(req.params.id);
@@ -340,11 +363,12 @@ const replaceThumbnail = async (req, res) => {
       return res.status(404).json({ message: 'Song not found' });
     }
 
-    if (!req.files || !req.files.thumbnail) {
+    // Change here: check req.file instead of req.files.thumbnail
+    if (!req.file) {
       return res.status(400).json({ message: 'Thumbnail file is required' });
     }
 
-    const thumbnail = req.files.thumbnail[0];
+    const thumbnail = req.file;
     const thumbnailUpload = await global.cloudinary.uploader.upload(thumbnail.path);
     song.thumbnailUrl = thumbnailUpload.secure_url;
 
