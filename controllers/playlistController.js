@@ -99,6 +99,25 @@ const getPlaylists = async (req, res) => {
   }
 };
 
+const getPlaylistById = async (req, res) => {
+  try {
+    const playlist = await Playlist.findById(req.params.id).populate('songs');
+    if (!playlist) {
+      return res.status(404).json({ message: 'Playlist not found' });
+    }
+
+    if (playlist.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    res.json(playlist);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
 const updatePlaylist = async (req, res) => {
   const { name, songs } = req.body;
 
@@ -168,4 +187,4 @@ const deleteSongFromPlaylist = async (req, res) => {
   }
 };
 
-module.exports = { createPlaylist, getPlaylists, updatePlaylist, deletePlaylist, deleteSongFromPlaylist };
+module.exports = { createPlaylist, getPlaylists, getPlaylistById, updatePlaylist, deletePlaylist, deleteSongFromPlaylist };

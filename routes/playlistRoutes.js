@@ -22,6 +22,7 @@ const router = express.Router();
 const {
   createPlaylist,
   getPlaylists,
+  getPlaylistById, // 👈 Add this
   updatePlaylist,
   deletePlaylist,
   deleteSongFromPlaylist
@@ -32,6 +33,7 @@ const authMiddleware = require('../middleware/authMiddleware'); // Correct impor
 // Routes with middleware
 router.post('/', authMiddleware, createPlaylist);
 router.get('/', authMiddleware, getPlaylists);
+router.get('/:id', authMiddleware, getPlaylistById);
 router.put('/:id', authMiddleware, updatePlaylist);
 router.delete('/:id', authMiddleware, deletePlaylist);
 router.delete('/:playlistId/songs/:songId', authMiddleware, deleteSongFromPlaylist); // New route
