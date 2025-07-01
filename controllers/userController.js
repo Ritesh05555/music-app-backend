@@ -10,7 +10,7 @@ const getProfile = async (req, res) => {
 };
 
 const updateProfile = async (req, res) => {
-  const { fullName } = req.body;
+  const { fullName, phone } = req.body;
 
   try {
     const user = await User.findById(req.user.id);
@@ -18,11 +18,19 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.fullName = fullName || user.fullName;
+    if (fullName) user.fullName = fullName;
+    // Only update phone if it is provided and not empty
+    if (typeof phone !== 'undefined' && phone !== null && phone !== '') {
+      user.phone = phone;
+    }
+
     await user.save();
     res.json({ message: 'Profile updated', user });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Phone number already exists' });
+    }
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
