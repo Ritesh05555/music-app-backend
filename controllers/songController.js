@@ -228,27 +228,6 @@ const uploadSong = async (req, res) => {
 };
 
 
-// const getSongs = async (req, res) => {
-//   const { mood, singer, movie, genre } = req.query;
-//   const filters = {};
-
-//   if (mood) filters.mood = { $regex: new RegExp(mood, 'i') };
-//   if (singer) filters.singer = { $regex: new RegExp(singer, 'i') };
-//   if (movie) filters.movie = { $regex: new RegExp(movie, 'i') };
-//   if (genre) filters.genre = { $regex: new RegExp(genre, 'i') };
-
-//   console.log('Applied filters:', filters);
-
-//   try {
-//     const songs = await Song.find(filters);
-//     console.log('Found songs:', songs);
-//     res.json(songs);
-//   } catch (error) {
-//     console.error('Get songs error:', error.message);
-//     res.status(500).json({ message: 'Server error', error: error.message });
-//   }
-// };
-
 const getSongs = async (req, res) => {
   const { mood, singer, movie, genre, search } = req.query;
   let filters = {};
