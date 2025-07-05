@@ -181,9 +181,10 @@
 // };
 
 
-
+const Fuse = require('fuse.js');
 const Song = require('../models/Song');
 const User = require('../models/User');
+
 // const cloudinary = require('../config/cloudinary');
 
 const uploadSong = async (req, res) => {
@@ -228,34 +229,72 @@ const uploadSong = async (req, res) => {
 };
 
 
+// const getSongs = async (req, res) => {
+//   const { mood, singer, movie, genre, search } = req.query;
+//   let filters = {};
+
+//   // Add filters for mood, singer, movie, genre
+//   if (mood) filters.mood = { $regex: new RegExp(mood, 'i') };
+//   if (singer) filters.singer = { $regex: new RegExp(singer, 'i') };
+//   if (movie) filters.movie = { $regex: new RegExp(movie, 'i') };
+//   if (genre) filters.genre = { $regex: new RegExp(genre, 'i') };
+
+//   console.log('Applied filters (without search):', filters);
+
+//   try {
+//     let songs = await Song.find(filters); 
+//     // If user entered search text, apply fuzzy search
+//     if (search) {
+//       const options = {
+//         keys: ['title', 'singer', 'mood', 'movie', 'genre'], // fields to search
+//         threshold: 0.4, // how fuzzy (0 = strict, 1 = very fuzzy)
+//         distance: 100,  // max distance for fuzzy match
+//       };
+
+//       const fuse = new Fuse(songs, options);
+//       const result = fuse.search(search);
+
+//       // Map result back to actual song objects
+//       songs = result.map(r => r.item);
+//     }
+
+//     console.log('Found songs:', songs.length);
+//     res.json(songs);
+//   } catch (error) {
+//     console.error('Get songs error:', error.message);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// };
+
 const getSongs = async (req, res) => {
   const { mood, singer, movie, genre, search } = req.query;
   let filters = {};
 
-  // Add search support
-  if (search) {
-    const regex = new RegExp(search, 'i'); // case-insensitive search
-    filters = {
-      $or: [
-        { title: regex },
-        { mood: regex },
-        { singer: regex },
-        { movie: regex },
-        { genre: regex }
-      ]
-    };
-  } else {
-    // fallback to specific filters if search is not used
-    if (mood) filters.mood = { $regex: new RegExp(mood, 'i') };
-    if (singer) filters.singer = { $regex: new RegExp(singer, 'i') };
-    if (movie) filters.movie = { $regex: new RegExp(movie, 'i') };
-    if (genre) filters.genre = { $regex: new RegExp(genre, 'i') };
-  }
+  // Add filters for mood, singer, movie, genre
+  if (mood) filters.mood = { $regex: new RegExp(mood, 'i') };
+  // Exact, case-insensitive match for singer
+  if (singer) filters.singer = { $regex: new RegExp(`^${singer.trim()}$`, 'i') };
+  if (movie) filters.movie = { $regex: new RegExp(movie, 'i') };
+  if (genre) filters.genre = { $regex: new RegExp(genre, 'i') };
 
-  console.log('Applied filters:', filters);
+  console.log('Applied filters (without search):', filters);
 
   try {
-    const songs = await Song.find(filters);
+    let songs = await Song.find(filters); 
+    // If user entered search text, apply fuzzy search
+    if (search) {
+      const options = {
+        keys: ['title', 'singer', 'mood', 'movie', 'genre'],
+        threshold: 0.4,
+        distance: 100,
+      };
+
+      const fuse = new Fuse(songs, options);
+      const result = fuse.search(search);
+
+      songs = result.map(r => r.item);
+    }
+
     console.log('Found songs:', songs.length);
     res.json(songs);
   } catch (error) {
@@ -263,6 +302,7 @@ const getSongs = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 
 const updateSong = async (req, res) => {
@@ -311,29 +351,6 @@ const replaceAudio = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
-
-// const replaceThumbnail = async (req, res) => {
-//   try {
-//     const song = await Song.findById(req.params.id);
-//     if (!song) {
-//       return res.status(404).json({ message: 'Song not found' });
-//     }
-
-//     if (!req.files || !req.files.thumbnail) {
-//       return res.status(400).json({ message: 'Thumbnail file is required' });
-//     }
-
-//     const thumbnail = req.files.thumbnail[0];
-//     const thumbnailUpload = await global.cloudinary.uploader.upload(thumbnail.path);
-//     song.thumbnailUrl = thumbnailUpload.secure_url;
-
-//     await song.save();
-//     res.json(song);
-//   } catch (error) {
-//     console.error('Replace thumbnail error:', error.message);
-//     res.status(500).json({ message: 'Server error', error: error.message });
-//   }
-// };
 
 const replaceThumbnail = async (req, res) => {
   try {

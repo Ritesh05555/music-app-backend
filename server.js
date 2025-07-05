@@ -115,7 +115,7 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'http://localhost:3000',
-    'http://192.168.0.109:5173',
+    'http://192.168.0.100:5173',
     'https://sundhun.onrender.com',
     'https://music-admin.onrender.com',
     'https://test-music-front.onrender.com'
