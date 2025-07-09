@@ -25,6 +25,7 @@ const songSchema = new mongoose.Schema({
   mood: String,
   movie: String,
   genre: String,
+  language: { type: String, required: true },
   duration: Number,
   audioUrl: String,
   thumbnailUrl: String,

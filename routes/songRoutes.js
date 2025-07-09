@@ -108,6 +108,7 @@ const {
   replaceThumbnail,
   deleteSong,
   getRecommendations,
+    getSongById,  
   getSongName,
   getSingerName,
   getMood,
@@ -171,7 +172,7 @@ router.get('/singer/:songId', getSingerName);
 router.get('/mood/:songId', getMood);
 router.get('/genre/:songId', getGenre);
 router.get('/movie/:songId', getMovie);
-
+router.get('/:id', authMiddleware, getSongById);
 // NEW: Update individual fields
 router.patch('/:id/title', authMiddleware, roleMiddleware('admin'), updateSongTitle);
 router.patch('/:id/singer', authMiddleware, roleMiddleware('admin'), updateSongSinger);
