@@ -1,4 +1,3 @@
-// generateHash.js
 const bcrypt = require('bcryptjs');
 
 const plainPassword = '5';
