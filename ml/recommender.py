@@ -1,77 +1,142 @@
+# ml/recommender.py
 import sys
 import json
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-def get_recommendations(criteria, all_songs_df):
-    """
-    Filters songs based on criteria and then finds recommendations if a title is provided.
-    """
-    
-    # Start with the full DataFrame of all songs
-    filtered_df = all_songs_df.copy()
+# --- Global cache for model ---
+model = None
 
-    # --- 1. Filter the songs based on the provided criteria ---
-    if 'mood' in criteria and criteria['mood']:
-        filtered_df = filtered_df[filtered_df['mood'].str.lower() == criteria['mood'].lower()]
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
-    if 'singer' in criteria and criteria['singer']:
-        filtered_df = filtered_df[filtered_df['singer'].str.lower().str.contains(criteria['singer'].lower(), na=False)]
+def load_model():
+    global model
+    if model is None:
+        model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
-    if 'language' in criteria and criteria['language']:
-        filtered_df = filtered_df[filtered_df['language'].str.lower() == criteria['language'].lower()]
+def initialize_embeddings(songs_list):
+    """MODE: init — prepare embeddings based on mood, singer, genre, movie."""
+    load_model()
+    df = pd.DataFrame(songs_list)
 
-    # --- ADDED: Filter by movie ---
-    if 'movie' in criteria and criteria['movie']:
-        # Use 'str.contains' for partial movie name matches
-        filtered_df = filtered_df[filtered_df['movie'].str.lower().str.contains(criteria['movie'].lower(), na=False)]
-    # --- END ADDED ---
+    required_cols = {'_id', 'mood', 'genre', 'singer', 'language', 'movie'}
+    for col in required_cols:
+        if col not in df.columns:
+            df[col] = ''
 
-    if filtered_df.empty:
-        return []
+    df.fillna('', inplace=True)
 
-    # --- 2. If a title is provided, find recommendations within the filtered list ---
-    if 'title' in criteria and criteria['title']:
-        if criteria['title'] not in filtered_df['title'].values:
-            return []
+    # ✅ No title here — only mood, singer, genre, movie, language
+    df['combined_tags'] = (
+        "mood: " + df['mood'].astype(str) + " " +
+        "genre: " + df['genre'].astype(str) + " " +
+        "singer: " + df['singer'].astype(str) + " " +
+        "movie: " + df['movie'].astype(str) + " " +
+        "language: " + df['language'].astype(str)
+    )
 
-        tfidf = TfidfVectorizer(stop_words='english')
-        tfidf_matrix = tfidf.fit_transform(filtered_df['tags'].fillna(''))
-        cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
-        indices = pd.Series(filtered_df.index, index=filtered_df['title']).drop_duplicates()
-        
-        try:
-            idx = indices[criteria['title']]
-            sim_scores = list(enumerate(cosine_sim[idx]))
-            sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-            sim_scores = sim_scores[1:6] # Get top 5
-            song_indices = [i[0] for i in sim_scores]
-            return filtered_df.iloc[song_indices].to_dict(orient='records')
-        except KeyError:
-            return []
+    embeddings = model.encode(df['combined_tags'].tolist(), show_progress_bar=False)
+    embedding_map = {row['_id']: emb.tolist() for _, row, emb in zip(df.index, df.to_dict('records'), embeddings)}
 
-    # --- 3. If no title is provided, just return the filtered list of songs ---
-    else:
-        return filtered_df.head(20).to_dict(orient='records')
+    print(json.dumps(embedding_map, cls=NpEncoder))
 
+def get_fast_recommendations(data):
+    """MODE: recommend — recommend songs based on mood/singer/genre/movie similarity."""
+    seed_songs = data.get('seedSongs', [])
+    all_songs_df = pd.DataFrame(data['allSongs'])
+    embeddings_map = data['embeddings']
 
-# Main execution block
+    if not seed_songs:
+        print(json.dumps([]))
+        return
+
+    all_songs_df['embedding'] = all_songs_df['_id'].map(embeddings_map)
+    all_songs_df.dropna(subset=['embedding'], inplace=True)
+
+    embeddings_matrix = np.array(all_songs_df['embedding'].tolist())
+
+    seed_song_ids = {s['_id'] for s in seed_songs}
+    seed_moods = {s.get('mood', '').lower() for s in seed_songs if s.get('mood')}
+    seed_genres = {s.get('genre', '').lower() for s in seed_songs if s.get('genre')}
+    seed_artists = {s.get('singer', '').lower() for s in seed_songs if s.get('singer')}
+    seed_movies = {s.get('movie', '').lower() for s in seed_songs if s.get('movie')}
+
+    all_recommendations = []
+
+    for seed in seed_songs:
+        seed_embedding = embeddings_map.get(seed['_id'])
+        if not seed_embedding:
+            continue
+
+        sim_scores = cosine_similarity([seed_embedding], embeddings_matrix)[0]
+        top_idx = np.argsort(sim_scores)[::-1][:80]  # Bigger pool for filtering
+
+        recs = all_songs_df.iloc[top_idx].copy()
+        recs['similarity'] = sim_scores[top_idx]
+        all_recommendations.extend(recs.to_dict('records'))
+
+    if not all_recommendations:
+        print(json.dumps([]))
+        return
+
+    recs_df = pd.DataFrame(all_recommendations)
+
+    # Remove seed songs themselves
+    recs_df = recs_df[~recs_df['_id'].isin(seed_song_ids)]
+
+    # ✅ Strict mood/genre/movie/singer filtering
+    recs_df = recs_df[
+        recs_df['mood'].str.lower().isin(seed_moods) |
+        recs_df['genre'].str.lower().isin(seed_genres) |
+        recs_df['singer'].str.lower().isin(seed_artists) |
+        recs_df['movie'].str.lower().isin(seed_movies)
+    ]
+
+    # Keep up to 2 songs per singer
+    recs_df = recs_df.groupby('singer').head(2)
+
+    # Sort by similarity
+    recs_df = recs_df.sort_values('similarity', ascending=False)
+
+    # Keep best 35 matches
+    recs_df = recs_df.head(35)
+
+    # Clean NaN
+    recs_df.replace({np.nan: None}, inplace=True)
+
+    final_recs = recs_df.drop(columns=['embedding', 'similarity'], errors='ignore').to_dict(orient='records')
+
+    print(json.dumps(final_recs, cls=NpEncoder))
+
 if __name__ == '__main__':
-    criteria = json.loads(sys.argv[1])
-    all_songs_data = sys.stdin.read()
-    songs_list = json.loads(all_songs_data)
-    
-    all_songs_df = pd.DataFrame(songs_list)
+    try:
+        mode = sys.argv[1]
+        input_str = sys.stdin.read()
+        if not input_str:
+            print(json.dumps({"error": "No input data received."}), file=sys.stderr)
+            print(json.dumps([]))
+            sys.exit()
 
-    # --- UPDATED: Add language and movie to the tags for the ML model ---
-    # Ensure all columns are strings and fill missing values to prevent errors
-    features = ['mood', 'genre', 'singer', 'language', 'movie']
-    for feature in features:
-        all_songs_df[feature] = all_songs_df[feature].astype(str).fillna('')
+        input_data = json.loads(input_str)
 
-    all_songs_df['tags'] = all_songs_df['mood'] + ' ' + all_songs_df['genre'] + ' ' + all_songs_df['singer'] + ' ' + all_songs_df['language'] + ' ' + all_songs_df['movie']
-    # --- END UPDATED ---
+        if mode == 'init':
+            initialize_embeddings(input_data)
+        elif mode == 'recommend':
+            get_fast_recommendations(input_data)
+        else:
+            print(json.dumps({"error": f"Invalid mode: {mode}"}), file=sys.stderr)
+            print(json.dumps([]))
 
-    recommendations = get_recommendations(criteria, all_songs_df)
-    print(json.dumps(recommendations))
+    except Exception as e:
+        print(f"Python Script Error: {e}", file=sys.stderr)
+        print(json.dumps([]))

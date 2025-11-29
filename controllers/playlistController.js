@@ -118,10 +118,32 @@ const removeItemFromPlaylist = async (req, res) => {
     }
 };
 
+const deletePlaylist = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const playlist = await Playlist.findOneAndDelete({
+            _id: id,
+            userId: userId
+        });
+
+        if (!playlist) {
+            return res.status(404).json({ message: 'Playlist not found or not authorized' });
+        }
+
+        res.json({ message: 'Playlist deleted successfully', playlistId: id });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// UPDATE your module.exports to include it:
 module.exports = {
     createPlaylist,
     getPlaylists,
     getPlaylistById,
     addItemToPlaylist,
-    removeItemFromPlaylist
+    removeItemFromPlaylist,
+    deletePlaylist  // ADD THIS LINE
 };

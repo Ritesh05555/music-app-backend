@@ -1,9 +1,19 @@
+// const express = require('express');
+// const router = express.Router();
+
+// const { getDynamicRecommendations } = require('../controllers/recommendationController');
+
+
+// router.post('/', getDynamicRecommendations);
+
+// module.exports = router;
+// routes/recommendationRoutes.js
 const express = require('express');
 const router = express.Router();
+const { getRecommendationsForUser } = require('../controllers/recommendationController');
+const authMiddleware = require('../middleware/authMiddleware');
 
-const { getDynamicRecommendations } = require('../controllers/recommendationController');
-
-
-router.post('/', getDynamicRecommendations);
+// The GET request uses the token from middleware to identify the user
+router.get('/for-user', authMiddleware, getRecommendationsForUser);
 
 module.exports = router;

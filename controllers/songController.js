@@ -458,6 +458,37 @@ const updateSongDuration = async (req, res) => {
     }
 };
 
+// NEW: Get songs by mood + language (specifically for mood screens)
+const getMoodSongsByLanguage = async (req, res) => {
+    try {
+        const { mood } = req.params;
+        const { language } = req.query;
+        
+        console.log(`🔍 Searching mood="${mood}" language="${language}"`);
+        
+        let filters = { 
+            mood: { $regex: new RegExp(mood, 'i') }  // Case-insensitive
+        };
+
+        // Filter by specific language (ignore "All Languages")
+        if (language && language !== 'All Languages') {
+            filters.language = { $regex: new RegExp(language, 'i') }; // More flexible
+            console.log(`Filtering mood=${mood} by language=${language}`);
+        }
+
+        const songs = await Song.find(filters).sort({ createdAt: -1 });
+        console.log(`✅ Found ${songs.length} songs for mood=${mood}`);
+        
+        res.json(songs);
+    } catch (error) {
+        console.error('Get mood songs error:', error.message);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+
+
+
 module.exports = {
     uploadSong,
     getSongs,
@@ -477,5 +508,7 @@ module.exports = {
     updateSongMood,
     updateSongMovie,
     updateSongGenre,
-    updateSongDuration
+    updateSongDuration,
+    getMoodSongsByLanguage  // ✅ ADD THIS LINE
 };
+
