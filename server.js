@@ -115,7 +115,7 @@ app.use('/api/playlists', require('./routes/playlistRoutes'));
 app.use('/api/song-requests', require('./routes/songRequestRoutes'));
 app.use('/api/ots', require('./routes/otsRoutes'));
 app.use('/api/lifelessons', require('./routes/lifeLessonRoutes'));
-//app.use('/api/recommendations', require('./routes/recommendationRoutes.js'));
+app.use('/api/recommendations', require('./routes/recommendationRoutes.js'));
 app.use('/api/history', require('./routes/historyRoutes'));
 
 // Health check
