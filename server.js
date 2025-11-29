@@ -115,7 +115,7 @@ app.use('/api/playlists', require('./routes/playlistRoutes'));
 app.use('/api/song-requests', require('./routes/songRequestRoutes'));
 app.use('/api/ots', require('./routes/otsRoutes'));
 app.use('/api/lifelessons', require('./routes/lifeLessonRoutes'));
-app.use('/api/recommendations', require('./routes/recommendationRoutes.js'));
+//app.use('/api/recommendations', require('./routes/recommendationRoutes.js'));
 app.use('/api/history', require('./routes/historyRoutes'));
 
 // Health check
@@ -131,7 +131,7 @@ connectDB().then(() => {
     app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
         // Initialize the recommendation model AFTER the server is running
-        initializeModel();
+        // initializeModel();
     });
 }).catch(err => {
     console.error("Failed to connect to DB, server not started.", err);
